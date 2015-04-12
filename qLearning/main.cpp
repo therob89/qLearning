@@ -21,6 +21,7 @@ int main(int argc, const char * argv[]) {
     qTable.setReward(1, 2, UP, 100);
     qTable.setReward(0, 1, RIGHT, 100);
     qTable.initMazeWallsGoalandAgentPos({{2,2},{1,2},{2,0}},{0,2});
+    int x = 0;
     /*
      int x = 0;
      do{
