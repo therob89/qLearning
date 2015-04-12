@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		DC46EDF01ADAA209009F4483 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DC46EDEF1ADAA209009F4483 /* main.cpp */; };
+		DC46EDFB1ADAA31E009F4483 /* QTable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DC46EDFA1ADAA31E009F4483 /* QTable.cpp */; };
+		DC46EE011ADAA362009F4483 /* Maze.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DC46EE001ADAA362009F4483 /* Maze.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -25,6 +27,8 @@
 /* Begin PBXFileReference section */
 		DC46EDEC1ADAA209009F4483 /* qLearning */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = qLearning; sourceTree = BUILT_PRODUCTS_DIR; };
 		DC46EDEF1ADAA209009F4483 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		DC46EDFA1ADAA31E009F4483 /* QTable.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = QTable.cpp; sourceTree = "<group>"; };
+		DC46EE001ADAA362009F4483 /* Maze.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Maze.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +62,8 @@
 			isa = PBXGroup;
 			children = (
 				DC46EDEF1ADAA209009F4483 /* main.cpp */,
+				DC46EDFA1ADAA31E009F4483 /* QTable.cpp */,
+				DC46EE001ADAA362009F4483 /* Maze.cpp */,
 			);
 			path = qLearning;
 			sourceTree = "<group>";
@@ -118,6 +124,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DC46EE011ADAA362009F4483 /* Maze.cpp in Sources */,
+				DC46EDFB1ADAA31E009F4483 /* QTable.cpp in Sources */,
 				DC46EDF01ADAA209009F4483 /* main.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
