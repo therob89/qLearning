@@ -62,8 +62,8 @@
 			isa = PBXGroup;
 			children = (
 				DC46EDEF1ADAA209009F4483 /* main.cpp */,
-				DC46EDFA1ADAA31E009F4483 /* QTable.cpp */,
 				DC46EE001ADAA362009F4483 /* Maze.cpp */,
+				DC46EDFA1ADAA31E009F4483 /* QTable.cpp */,
 			);
 			path = qLearning;
 			sourceTree = "<group>";
@@ -243,6 +243,7 @@
 				DC46EDF51ADAA209009F4483 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

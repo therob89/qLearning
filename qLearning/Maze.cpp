@@ -21,9 +21,12 @@ using namespace std;
 
 
 class Maze{
+    
     vector<vector<string>> maze;
     tuple<int,int> currentAgentPos;
+    vector<tuple<int,int>> listOFWalls;
     int x_dim,y_dim;
+    
 public:
     Maze(int x, int y){
         if (x && y){
@@ -35,6 +38,13 @@ public:
         }
         
     }
+    tuple<int,int> getDimensionOfMaze(){
+        return {x_dim,y_dim};
+    }
+    vector<tuple<int,int>> getWallsOfMaze(){
+        return this->listOFWalls;
+    }
+    
     void setWalls(vector<tuple<int,int>> listOfWalls, tuple<int,int> goal){
         for(int i=0;i<listOfWalls.size();i++){
             int x = get<0>(listOfWalls[i]);
@@ -48,6 +58,7 @@ public:
         if((x>=0 && x<x_dim)&&(y>=0 && y<y_dim)){
             maze[x][y].replace(1, 1, GOAL);
         }
+        this->listOFWalls = listOFWalls;
     }
     void setAgent(tuple<int,int> agentPos){
         int x = get<0>(agentPos);
@@ -88,12 +99,4 @@ public:
             cout << endl;
         }
     }
-    
-    
-    
-    
-    
-    
-    
-    
 };
