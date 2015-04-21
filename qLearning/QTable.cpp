@@ -40,16 +40,16 @@ class Q_Table{
     Maze maze;
     public:
     ofstream logFile;
-    
+
     
 public:
     
     Q_Table(size_t a,size_t b,int init = 0):
     x_dim(a),y_dim(b),z_dim(N_OF_ACTIONS),m_data(a*b*z_dim,0.0),maze((int)x_dim,(int)y_dim){
-        cout << "Initially there are " << count(m_data.begin(), m_data.end(), 0) << " zeros values" <<endl;
         if(init==0) logFile.open("./log.txt",ios::out);
         else logFile.open("./logSarsa.txt",ios::out);
     }
+    
     
 #pragma mark GET METHODS
     Maze getMaze(){
@@ -65,6 +65,20 @@ public:
         maze.setWalls(listOfWalls, goal);
         listOFWalls = listOfWalls;
         initActions();
+        disableCellsWithWalls();
+    }
+    
+    void disableCellsWithWalls(){
+        int x,y;
+        for(vector<tuple<int,int>>::iterator it=this->listOFWalls.begin();it!=this->listOFWalls.end();it++){
+            x = get<0>(*it);
+            y = get<1>(*it);
+            if((x>=0 && x<x_dim) && (y>=0 && y<y_dim)){
+                for(int k = 0;k<N_OF_ACTIONS;k++){
+                    m_data.at(x + y * x_dim + k * x_dim * y_dim)  = -1.0;
+                }
+            }
+        }
     }
     void initActions(){
         cout << "Initializing Actions values" << endl ;
@@ -212,18 +226,21 @@ public:
             c+=1;
             logFile << "\t\t\t EPISODE: " << c << endl;
             runAnEpisode(goal_x, goal_y);
+            this->printValuesInReadableForm();
             
-        }while (count(m_data.begin(),m_data.end(),0)>5);
+        }while (count(m_data.begin(),m_data.end(),0.0)!=0);
         cout << "Episode needed to convergence = " <<c << endl;
         logFile.close();
     }
     
     tuple<int,int> getRandomPosition(){
-        srand((unsigned)time(0));
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int>dis(0,(int)(x_dim-1));
         tuple<int,int> start; //= {2,1};
         do{
-            get<0>(start)= rand() % x_dim;
-            get<1>(start)= rand() % y_dim;
+            get<0>(start)= dis(gen);
+            get<1>(start)= dis(gen);
         }while (find(listOFWalls.begin(),listOFWalls.end(),start)!=listOFWalls.end());
         return start;
         
@@ -372,13 +389,13 @@ public:
     int chooseActionWithPolicyEGreedy(tuple<int,int> current_pos){
         std::random_device rd;
         std::mt19937 gen(rd());
-        std::uniform_real_distribution<> dis(0, 1);
+        uniform_real_distribution<double>dis;
         double rnd = dis(gen);
         int action;
         if(rnd>EPSILON){
             action =  getBestActionFromCurrentState(current_pos);
             if(action == -1){
-                cout << "Current pos IS AT x:"<< get<0>(current_pos) << " y: " << get<1>(current_pos);
+                cout << "Current pos IS AT x:"<< get<0>(current_pos) << " y: " << get<1>(current_pos) << endl;
                 cout << "Error with action...that is --->" << action <<  endl << "List of available actions " << endl;
                 for(int i =0;i<N_OF_ACTIONS;i++){
                     cout << "VALUES: " << m_data.at(get<0>(current_pos) + get<1>(current_pos) * x_dim + i * x_dim * y_dim);
@@ -390,58 +407,25 @@ public:
             std::uniform_int_distribution<int> idist(0,N_OF_ACTIONS-1);
             action = (int)idist(gen);
             while(!this->checkAction(current_pos, action)){
-                std::uniform_int_distribution<int> idist(0,N_OF_ACTIONS-1);
+                //std::uniform_int_distribution<int> idist(0,N_OF_ACTIONS-1);
                 action = (int) idist(gen);
             }
         }
         
         return action;
     }
-    void doesSARSA(int goal_x, int goal_y){
-        logFile << "SARSA ALGORITHM " << endl;
-        //cout << "SARSA " << endl;
-        tuple<int,int> current_pos = getRandomPosition();
-        int firstAction;
-        double reward;
-        firstAction = chooseActionWithPolicyEGreedy(current_pos);
-        int secondAction = firstAction;
-        double t_value1,t_value2;
-        tuple<int,int> temp_position = current_pos;
-        secondAction = firstAction;
-        maze.setAgent(current_pos);
-        logFile << "START POSITION IS AT x:"<< get<0>(current_pos) << " y: " << get<1>(current_pos) << endl;;
-        while(get<0>(current_pos) != goal_x || get<1>(current_pos) != goal_y){
-            reward = m_data.at(get<0>(current_pos) + get<1>(current_pos) * x_dim + firstAction * x_dim * y_dim);
-            temp_position = observeNewState(temp_position, firstAction);
-            secondAction = this->chooseActionWithPolicyEGreedy(temp_position);
-            /*
-            logFile << "current : "<< get<0>(current_pos) << get<1>(current_pos)
-                        << " --- New pos : " << get<0>(temp_position) <<  get<1>(temp_position) << 
-                            "FIRST ACTION" << firstAction << "NEW ACTION" << secondAction <<endl;*/
-            t_value1 =  m_data.at(get<0>(current_pos) + get<1>(current_pos) *x_dim + firstAction *x_dim * y_dim);
-            t_value2 = m_data.at(get<0>(temp_position) + get<1>(temp_position) *x_dim + secondAction *x_dim * y_dim);
-            m_data.at(get<0>(current_pos) + get<1>(current_pos) *x_dim + firstAction *x_dim * y_dim)
-                                                    = fmod((t_value1 + ALFA*(reward + (GAMMA*t_value2) - t_value1)),100);
-            //cout << "New value :" << fmod((t_value1 + ALFA*(reward + (GAMMA*t_value2) - t_value1)),100) << endl;
-            firstAction = secondAction;
-            current_pos = temp_position;
-            maze.setAgent(current_pos);
-            maze.printMaze(logFile);
-            
-        }
-        //cout << " \t END SARSA"<< endl;
-
-    }
+    
     
     void completeSARSA(int goal_x, int goal_y){
         int c=0;
-        while(count(m_data.begin(),m_data.end(),0.0)>5){
+        logFile << "SARSA ALGORITHM " << endl;
+        while(count(m_data.begin(),m_data.end(),0.0)!=2){
             Maze temp((int)x_dim,(int)y_dim);
             temp.setWalls(listOFWalls, tuple<int,int>(goal_x,goal_y));
             this->maze = temp;
             c+=1;
             logFile << "\t\t\t EPISODE: " << c << endl;
-            doesSARSA(goal_x, goal_y);
+            runAnEpisodeOfSARSA(goal_x, goal_y);
             this->printValuesInReadableForm();
             
         }
@@ -449,6 +433,33 @@ public:
         logFile.close();
         
 
+    }
+    
+    void runAnEpisodeOfSARSA(int goal_x, int goal_y){
+        
+        tuple<int,int> currentPos = getRandomPosition();
+        int action = chooseActionWithPolicyEGreedy(currentPos);
+        tuple<int,int> new_state;
+        int reward,action2;
+        int x1,y1,x2,y2;
+        while(get<0>(currentPos) != goal_x || get<1>(currentPos) != goal_y){
+            logFile << "Starting position is at : " << get<0>(currentPos) << get<1>(currentPos)<< endl;
+            new_state = observeNewState(currentPos, action);
+            reward = m_data.at(get<0>(currentPos) + get<1>(currentPos) *x_dim + action * x_dim * y_dim);
+            action2 = chooseActionWithPolicyEGreedy(new_state);
+            logFile << "Observing new state is: " << get<0>(new_state) << get<1>(new_state)<< endl;
+            logFile << "Action1 =  " << action << "Action2 is= " << action2<< endl;
+            x1 = get<0>(currentPos);
+            y1 = get<1>(currentPos);
+            x2 = get<0>(new_state);
+            y2 = get<1>(new_state);
+            m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim) = m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim)
+                    + ALFA*(reward + (GAMMA*m_data.at(x2 + y2 * x_dim + action2 * x_dim * y_dim)) - m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim));
+            currentPos = new_state;
+            action = action2;
+            maze.setAgent(currentPos);
+            maze.printMaze(logFile);
+        }
     }
     
 };
