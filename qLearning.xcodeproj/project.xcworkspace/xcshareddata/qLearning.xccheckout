@@ -7,14 +7,14 @@
 	<key>IDESourceControlProjectIdentifier</key>
 	<string>D02C4A4D-0B0C-4F8D-864D-6E95685CA9DE</string>
 	<key>IDESourceControlProjectName</key>
-	<string>project</string>
+	<string>qLearning</string>
 	<key>IDESourceControlProjectOriginsDictionary</key>
 	<dict>
 		<key>7DCDB488E853989D677BF3DC6E046CB267A0682D</key>
 		<string>https://github.com/therob89/qLearning.git</string>
 	</dict>
 	<key>IDESourceControlProjectPath</key>
-	<string>qLearning.xcodeproj/project.xcworkspace</string>
+	<string>qLearning.xcodeproj</string>
 	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
 	<dict>
 		<key>7DCDB488E853989D677BF3DC6E046CB267A0682D</key>
