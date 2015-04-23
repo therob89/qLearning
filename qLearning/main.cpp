@@ -17,13 +17,15 @@ using namespace std;
 
 int main(int argc, const char * argv[]) {
     
-    Q_Table qTable(4,4,1);
+    Q_Table qTable(3,3,QLEARNING);
     qTable.initMazeWallsGoalandAgentPos({{2,2},{0,0},{2,0}},{0,2});
     qTable.setReward(1, 2, UP, 100);
     qTable.setReward(0, 1, RIGHT, 100);
     //qTable.setReward(0,3, LEFT, 90);
     qTable.printValuesInReadableForm();
-    qTable.completeSARSA(0,2);
-    //qTable.doLearning(0, 2);
+    //qTable.completeSARSA(0,2);
+    qTable.doLearning(0, 2);
+    //tuple<int,int> res = qTable.returnAfunctionWithARandomEffect({1,2}, UP);
+    //cout << "Action is right but performed is " << get<0>(res) << " " << get<1>(res)  << endl;
     return 0;
 }

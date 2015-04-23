@@ -29,6 +29,9 @@
 #define GAMMA   0.9
 #define ALFA    0.1
 
+#define QLEARNING   "QLEARNING"
+#define SARSA       "SARSA"
+
 using namespace std;
 
 class Q_Table{
@@ -39,16 +42,23 @@ class Q_Table{
     vector<tuple<int,int>> listOFWalls;
     Maze maze;
     double epsilon;
+    string typeOfAlg;
     public:
     ofstream logFile;
 
     
 public:
     
-    Q_Table(size_t a,size_t b,int init = 0):
+    Q_Table(size_t a,size_t b, string algType):
     x_dim(a),y_dim(b),z_dim(N_OF_ACTIONS),m_data(a*b*z_dim,0.0),maze((int)x_dim,(int)y_dim),reward_data(a*b*z_dim,0){
-        if(init==0) logFile.open("./log.txt",ios::out);
-        else logFile.open("./logSarsa.txt",ios::out);
+        if(algType.compare(QLEARNING)==0){
+            logFile.open("./log.txt",ios::out);
+        }
+        else{
+           logFile.open("./logSarsa.txt",ios::out);
+            typeOfAlg = 1;
+        }
+        typeOfAlg = algType;
     }
     
     
@@ -123,7 +133,6 @@ public:
     }
     
     void setReward(int x,int j,int action,int reward){
-        //m_data.at(x + j * x_dim + action * x_dim * y_dim) = reward;
         reward_data.at(x + j * x_dim + action * x_dim * y_dim) = reward;
     }
     
@@ -143,6 +152,16 @@ public:
             return false;
         }
     }
+
+    
+    bool checkIfIsTheGoal(tuple<int,int> new_pos,int goal_x,int goal_y){
+        if(get<0>(new_pos)== goal_x && get<1>(new_pos)  == goal_y){
+            return true;
+        }
+        return false;
+    }
+    
+#pragma mark FACILITIES
     
     int getMaxFromNewState(tuple<int,int> new_pos){
         int k,temp,res=0;
@@ -155,190 +174,24 @@ public:
         return res;
     }
     
-    bool checkIfIsTheGoal(tuple<int,int> new_pos,int goal_x,int goal_y){
-        if(get<0>(new_pos)== goal_x && get<1>(new_pos)  == goal_y){
-            return true;
-        }
-        return false;
-    }
-    
-#pragma mark ACTION METHOD
-    tuple<int,int> performAction(tuple<int,int> current_pos,int action,int goal_x,int goal_y){
-        
-        int x,j,res;
-        res = 0;
-        switch (action) {
-            case UP:
-                if(checkAction(current_pos, UP)){
-                    j = get<1>(current_pos);
-                    x = get<0>(current_pos);
-                    get<0>(current_pos) = x-1;
-                    if(!checkIfIsTheGoal(current_pos, goal_x, goal_y)){
-                        m_data.at(x + j * x_dim + UP * x_dim * y_dim) = GAMMA * getMaxFromNewState(current_pos);
-                    }
-                    logFile << " \t Action is : ↑ ";
-                }
-                break;
-            case DOWN:
-                if(checkAction(current_pos, DOWN)){
-                    j = get<1>(current_pos);
-                    x = get<0>(current_pos);
-                    get<0>(current_pos) = x+1;
-                    if(!checkIfIsTheGoal(current_pos, goal_x, goal_y)){
-                        m_data.at(x + j * x_dim + DOWN * x_dim * y_dim) = GAMMA * getMaxFromNewState(current_pos);
-                    }
-                    logFile << " \t Action is : ↓ " ;
-                }
-                break;
-            case LEFT:
-                if(checkAction(current_pos, LEFT)){
-                    j = get<1>(current_pos);
-                    x = get<0>(current_pos);
-                    get<1>(current_pos) = j-1;
-                    if(!checkIfIsTheGoal(current_pos, goal_x, goal_y)){
-                        m_data.at(x + j * x_dim + LEFT * x_dim * y_dim) = GAMMA * getMaxFromNewState(current_pos);
-                    }
-                    logFile << " \t Action is : ← ";
-                }
-                break;
-            case RIGHT:
-                if(checkAction(current_pos, RIGHT)){
-                    j = get<1>(current_pos);
-                    x = get<0>(current_pos);
-                    get<1>(current_pos) = j+1;
-                    if(!checkIfIsTheGoal(current_pos, goal_x, goal_y)){
-                        m_data.at(x + j * x_dim + RIGHT * x_dim * y_dim) = GAMMA * getMaxFromNewState(current_pos);
-                    }
-                    logFile << " \t Action is : → ";
-                }
-                break;
-                
-        }
-        logFile << endl;
-        return current_pos;
-    }
-    
-#pragma mark Q_LEARNING METHODS
-    void doLearning(int goal_x, int goal_y){
-        
-        int c=0;
-        do{
-            Maze temp((int)x_dim,(int)y_dim);
-            temp.setWalls(listOFWalls, tuple<int,int>(goal_x,goal_y));
-            this->maze = temp;
-            c+=1;
-            logFile << "\t\t\t EPISODE: " << c << endl;
-            runAnEpisode(goal_x, goal_y);
-            this->printValuesInReadableForm();
-            
-        }while (count(m_data.begin(),m_data.end(),0.0)!=0);
-        cout << "Episode needed to convergence = " <<c << endl;
-        logFile.close();
-    }
-    
-    tuple<int,int> getRandomPosition(){
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<int>dis(0,(int)(x_dim-1));
-        tuple<int,int> start; //= {2,1};
-        do{
-            get<0>(start)= dis(gen);
-            get<1>(start)= dis(gen);
-        }while (find(listOFWalls.begin(),listOFWalls.end(),start)!=listOFWalls.end());
-        return start;
-        
-    }
-    void runAnEpisode(int goal_x, int goal_y){
-       
-        tuple<int,int> start = getRandomPosition();
-        float constant = 0.5;
-        int action;
-        cout << "Start position is at x: " << get<0>(start) << " y: " << get<1>(start) << endl;
-        maze.setAgent(start);
-        while(get<0>(start) != goal_x || get<1>(start) != goal_y){
-            maze.printMaze(logFile);
-            action = computeActionGivenProbability(constant, start);
-            if(action == -1){
-                //cout << "action is -1" <<endl;
-                continue;
-            }
-            constant +=0.1;
-            start = performAction(start,action,goal_x,goal_y);
-            maze.setAgent(start);
-        }
-        maze.printMaze(logFile);
-        cout << endl << "Arrived At destination number of zeros are " << count(m_data.begin(),m_data.end(), 0)<< endl;
-    }
-    void printValuesInReadableForm(){
-        for(int i=0;i<x_dim;i++){
-            for(int j=0;j<y_dim;j++){
-                for(int k=0;k<N_OF_ACTIONS;k++){
-                    int val = m_data.at(i + j * x_dim + k * x_dim * y_dim);
-                    //if(val !=-1 && val !=-0){
-                    logFile << "x: " <<i<<" y: " <<j;
-                    switch (k) {
-                        case UP:
-                            logFile << " ↑ values: " <<val;
-                            break;
-                        case DOWN:
-                            logFile << " ↓ values: " <<val;
-                            break;
-                        case LEFT:
-                            logFile << " ← values: " <<val;
-                            break;
-                        case RIGHT:
-                            logFile << " → values: " <<val;
-                            break;
-                    }
-                    logFile << endl;
-                    //}
-                }
-            }
-        }
-    }
-    
-    int computeActionGivenProbability(float k_value, tuple<int,int> current_pos){
-        
-        double den,num,res,temp;
-        int action;
-        res = -1.0;
-        action = -1.0;
-        temp = -1.0;
-        vector<tuple<int,double>> listOfProbs;
-        
+    int getBestActionFromCurrentState(tuple<int,int> current_pos){
+        int action = -1;
+        double temp = -1;
+        double t = action;
         for(int k=0;k<N_OF_ACTIONS;k++){
-            if(m_data.at(get<0>(current_pos) + get<1>(current_pos) * x_dim + k * x_dim * y_dim)!=-1){
-                temp = pow(k_value,m_data.at(get<0>(current_pos) + get<1>(current_pos) * x_dim + k * x_dim * y_dim));
-                den+=temp;
-                
+            if((temp = m_data.at(get<0>(current_pos) + get<1>(current_pos) * x_dim + k * x_dim * y_dim))!=-1.0){
+                if(temp>=t){
+                    t = temp;
+                    action = k;
+                }
             }
         }
-        for(int k=0;k<N_OF_ACTIONS;k++){
-            if(m_data.at(get<0>(current_pos) + get<1>(current_pos) * x_dim + k * x_dim * y_dim)!=-1){
-                num =  pow(k_value,m_data.at(get<0>(current_pos) + get<1>(current_pos) * x_dim + k * x_dim * y_dim));
-                tuple<int,double> t_temp = {k,num/den};
-                listOfProbs.insert(listOfProbs.end(), t_temp);
-            }
-            
-        }
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_real_distribution<> dis(0, 1);
-        double rnd = dis(gen);
-        for(int i=0; i<listOfProbs.size(); i++) {
-            if(rnd < get<1>(listOfProbs[i])){
-                return get<0>(listOfProbs[i]);
-            }
-            rnd -= get<1>(listOfProbs[i]);
-        }
-        return -1;
+        return action;
     }
-    
-#pragma mark SARSA METHOD
     
     tuple<int,int> observeNewState(tuple<int,int> current_pos, int action){
-        int x_res = get<0> (current_pos);
-        int y_res = get<1> (current_pos);
+        int x_res = -1;
+        int y_res = -1;
         int j = get<1>(current_pos);
         int x = get<0>(current_pos);
         switch (action) {
@@ -375,20 +228,139 @@ public:
         return {x_res,y_res};
     }
     
-    int getBestActionFromCurrentState(tuple<int,int> current_pos){
-        int action = -1;
-        double temp = -1;
-        double t = action;
+    /*
+     Select action policy = Soft-max strategy
+     */
+    int computeActionGivenProbability(double k_value, tuple<int,int> current_pos){
+        
+        double den,num,res,temp;
+        int action;
+        res = -1.0;
+        action = -1.0;
+        temp = -1.0;
+        vector<tuple<int,double>> listOfProbs;
+        
         for(int k=0;k<N_OF_ACTIONS;k++){
-            if((temp = m_data.at(get<0>(current_pos) + get<1>(current_pos) * x_dim + k * x_dim * y_dim))!=-1.0){
-                if(temp>=t){
-                    t = temp;
-                    action = k;
-                }
+            if(m_data.at(get<0>(current_pos) + get<1>(current_pos) * x_dim + k * x_dim * y_dim)!=-1){
+                temp = pow(k_value,m_data.at(get<0>(current_pos) + get<1>(current_pos) * x_dim + k * x_dim * y_dim));
+                den+=temp;
+                
             }
         }
-        return action;
+        for(int k=0;k<N_OF_ACTIONS;k++){
+            if(m_data.at(get<0>(current_pos) + get<1>(current_pos) * x_dim + k * x_dim * y_dim)!=-1){
+                num =  pow(k_value,m_data.at(get<0>(current_pos) + get<1>(current_pos) * x_dim + k * x_dim * y_dim));
+                tuple<int,double> t_temp = {k,num/den};
+                listOfProbs.insert(listOfProbs.end(), t_temp);
+            }
+            
+        }
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<> dis(0, 1);
+        double rnd = dis(gen);
+        for(int i=0; i<listOfProbs.size(); i++) {
+            if(rnd < get<1>(listOfProbs[i])){
+                return get<0>(listOfProbs[i]);
+            }
+            rnd -= get<1>(listOfProbs[i]);
+        }
+        return -1;
     }
+    
+    tuple<int,int> getRandomPosition(){
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int>dis(0,(int)(x_dim-1));
+        tuple<int,int> start; //= {2,1};
+        do{
+            get<0>(start)= dis(gen);
+            get<1>(start)= dis(gen);
+        }while (find(listOFWalls.begin(),listOFWalls.end(),start)!=listOFWalls.end());
+        return start;
+        
+    }
+    void printValuesInReadableForm(){
+    logFile << "****************************** COMPLETE LIST OF VALUES ****************************** " << endl;
+    for(int i=0;i<x_dim;i++){
+        for(int j=0;j<y_dim;j++){
+            for(int k=0;k<N_OF_ACTIONS;k++){
+                int val = m_data.at(i + j * x_dim + k * x_dim * y_dim);
+                //if(val !=-1 && val !=-0){
+                logFile << "x: " <<i<<" y: " <<j;
+                switch (k) {
+                    case UP:
+                        logFile << " ↑ values: " <<val;
+                        break;
+                    case DOWN:
+                        logFile << " ↓ values: " <<val;
+                        break;
+                    case LEFT:
+                        logFile << " ← values: " <<val;
+                        break;
+                    case RIGHT:
+                        logFile << " → values: " <<val;
+                        break;
+                }
+                logFile << endl;
+                //}
+            }
+        }
+    }
+    logFile << "************************************************************************************ " << endl;
+}
+#pragma mark Q_LEARNING METHODS
+    void doLearning(int goal_x, int goal_y){
+        this->epsilon = 0.99;
+        int c=0;
+        double constant = 0.2;
+        do{
+            Maze temp((int)x_dim,(int)y_dim);
+            temp.setWalls(listOFWalls, tuple<int,int>(goal_x,goal_y));
+            this->maze = temp;
+            c+=1;
+            logFile << "\t\t\t EPISODE: " << c << endl;
+            runAnEpisode(goal_x, goal_y,constant);
+            this->printValuesInReadableForm();
+            constant += 0.2;
+            if((this->epsilon - 0.0001) >=0){
+                this->epsilon -= 0.0001;
+            }
+            
+            
+        }while (count(m_data.begin(),m_data.end(),0.0)!=2);
+        cout << "Episode needed to convergence = " <<c << endl;
+        logFile.close();
+    }
+
+    void runAnEpisode(int goal_x, int goal_y, double k_val){
+       
+        tuple<int,int> start = getRandomPosition();
+        tuple<int,int> new_state;
+        int action;
+        cout << "Start position is at x: " << get<0>(start) << " y: " << get<1>(start) << endl;
+        maze.setAgent(start);
+        while(get<0>(start) != goal_x || get<1>(start) != goal_y){
+            maze.printMaze(logFile);
+            //action = computeActionGivenProbability(k_val, start);
+            action = chooseActionWithPolicyEGreedy(start);
+            if(action == -1){
+                //cout << "action is -1" <<endl;
+                continue;
+            }
+            new_state = observeNewState(start, action);
+            m_data.at(get<0>(start) + get<1>(start) * x_dim + action * x_dim * y_dim) = reward_data.at(get<0>(start) + get<1>(start) * x_dim + action * x_dim * y_dim) + (GAMMA * getMaxFromNewState(new_state));
+            maze.setAgent(new_state);
+            start = new_state;
+        }
+        maze.printMaze(logFile);
+        cout << "Arrived At destination number of zeros are " << count(m_data.begin(),m_data.end(), 0)<< endl;
+    }
+
+#pragma mark SARSA METHOD
+    
+
+   
     int chooseARandomAction(tuple<int,int> currentPos){
         std::random_device rd2;
         std::mt19937 gen(rd2());
@@ -462,7 +434,8 @@ public:
         int x1,y1,x2,y2;
         while(get<0>(currentPos) != goal_x || get<1>(currentPos) != goal_y){
             logFile << "Starting position is at : " << get<0>(currentPos) << get<1>(currentPos)<< endl;
-            new_state = observeNewState(currentPos, action);
+            //new_state = observeNewState(currentPos, action);
+            new_state = returnAfunctionWithARandomEffect(currentPos,action);
             reward = reward_data.at(get<0>(currentPos) + get<1>(currentPos) *x_dim + action * x_dim * y_dim);
             action2 = chooseActionWithPolicyEGreedy(new_state);
             logFile << "Observing new state is: " << get<0>(new_state) << get<1>(new_state)<< endl;
@@ -471,10 +444,6 @@ public:
             y1 = get<1>(currentPos);
             x2 = get<0>(new_state);
             y2 = get<1>(new_state);
-            /*
-            m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim) = fmod(m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim)
-                    + ALFA*(reward + (GAMMA*m_data.at(x2 + y2 * x_dim + action2 * x_dim * y_dim)) - m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim)),101);
-            */
             m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim) += ALFA*(reward + (GAMMA*m_data.at(x2 + y2 * x_dim + action2 * x_dim * y_dim))
                                                                                 - m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim));
              currentPos = new_state;
@@ -488,12 +457,20 @@ public:
   
 #pragma mark RANDOM EFFECT 
     
-    int returnAfunctionWithARandomEffect(tuple<int,int> currentPos){
+    tuple<int,int> returnAfunctionWithARandomEffect(tuple<int,int> currentPos, int normal_action){
         int action;
         std::random_device rd2;
         std::mt19937 gen(rd2());
         std::uniform_int_distribution<int> dist(0,N_OF_ACTIONS-1);
         action = dist(gen);
-        return -1;
+        int x,y;
+        tuple<int,int> res = observeNewState(currentPos, action);
+        x = get<0>(currentPos);
+        y = get<1>(currentPos);
+        while((get<0>(res)==-1 || get<1>(res)==-1)){
+            action = dist(gen);
+            res = observeNewState(currentPos, action);
+        }
+        return res;
     }
 };
