@@ -73,9 +73,11 @@ public:
 #pragma mark INIT_METHODS
     
     void initMazeWallsGoalandAgentPos(vector<tuple<int,int>> listOfWalls, tuple<int,int> goal){
-        maze.setWalls(listOfWalls, goal);
-        listOFWalls = listOfWalls;
-        disableCellsWithWalls();
+        if(listOfWalls.size()!=0){
+            maze.setWalls(listOfWalls, goal);
+            listOFWalls = listOfWalls;
+            disableCellsWithWalls();
+        }
         initActions();
 
     }
@@ -133,6 +135,9 @@ public:
     }
     
     void setReward(int x,int j,int action,int reward){
+        if(x<0 || x>x_dim || j<0 || j>y_dim){
+            return;
+        }
         reward_data.at(x + j * x_dim + action * x_dim * y_dim) = reward;
     }
     
@@ -228,8 +233,8 @@ public:
         return {x_res,y_res};
     }
     
-    /*
-     Select action policy = Soft-max strategy
+     /*
+        Select action policy = Soft-max strategy
      */
     int computeActionGivenProbability(double k_value, tuple<int,int> current_pos){
         
@@ -280,6 +285,7 @@ public:
         return start;
         
     }
+    
     void printValuesInReadableForm(){
     logFile << "****************************** COMPLETE LIST OF VALUES ****************************** " << endl;
     for(int i=0;i<x_dim;i++){
@@ -311,56 +317,74 @@ public:
 }
 #pragma mark Q_LEARNING METHODS
     void doLearning(int goal_x, int goal_y){
-        this->epsilon = 0.99;
+        this->epsilon = 1.0;
         int c=0;
+        int episodes = 1000;
+        int step = 0;
         double constant = 0.2;
+        std::clock_t start;
+        start = std::clock();
         do{
             Maze temp((int)x_dim,(int)y_dim);
             temp.setWalls(listOFWalls, tuple<int,int>(goal_x,goal_y));
             this->maze = temp;
             c+=1;
             logFile << "\t\t\t EPISODE: " << c << endl;
-            runAnEpisode(goal_x, goal_y,constant);
+            step+= runQLearningEpisode(goal_x, goal_y,constant);
+            //step += runQLearningEpisodeDeterministic(goal_x, goal_y,constant);
             this->printValuesInReadableForm();
             constant += 0.2;
-            if((this->epsilon - 0.0001) >=0){
-                this->epsilon -= 0.0001;
+            if((this->epsilon - 0.001) >=0){
+                this->epsilon -= 0.001;
             }
-            
-            
-        }while (count(m_data.begin(),m_data.end(),0.0)!=2);
-        cout << "Episode needed to convergence = " <<c << endl;
+            episodes-=1;
+        }while (episodes!=0);//count(m_data.begin(),m_data.end(),0.0)!=0);
+        cout << "QLEARNING completed in : " << (clock() - start)/(double)CLOCKS_PER_SEC<< " seconds" << endl;
         logFile.close();
     }
 
-    void runAnEpisode(int goal_x, int goal_y, double k_val){
+    int runQLearningEpisode(int goal_x, int goal_y, double k_val){
        
         tuple<int,int> start = getRandomPosition();
         tuple<int,int> new_state;
         int action;
-        cout << "Start position is at x: " << get<0>(start) << " y: " << get<1>(start) << endl;
+        int act;
+        int res;
         maze.setAgent(start);
         while(get<0>(start) != goal_x || get<1>(start) != goal_y){
             maze.printMaze(logFile);
-            //action = computeActionGivenProbability(k_val, start);
             action = chooseActionWithPolicyEGreedy(start);
-            if(action == -1){
-                //cout << "action is -1" <<endl;
-                continue;
-            }
+            act = returnARandomAction(start, action);
+            new_state = observeNewState(start, act);
+            m_data.at(get<0>(start) + get<1>(start) * x_dim + action * x_dim * y_dim) = reward_data.at(get<0>(start) + get<1>(start) * x_dim + act * x_dim * y_dim) + (GAMMA * getMaxFromNewState(new_state));
+            maze.setAgent(new_state);
+            start = new_state;
+            res+=1;
+        }
+        maze.printMaze(logFile);
+        return res;
+    }
+    int runQLearningEpisodeDeterministic(int goal_x, int goal_y, double k_val){
+        
+        tuple<int,int> start = getRandomPosition();
+        tuple<int,int> new_state;
+        int action,res;
+        maze.setAgent(start);
+        while(get<0>(start) != goal_x || get<1>(start) != goal_y){
+            maze.printMaze(logFile);
+            action = chooseActionWithPolicyEGreedy(start);
             new_state = observeNewState(start, action);
             m_data.at(get<0>(start) + get<1>(start) * x_dim + action * x_dim * y_dim) = reward_data.at(get<0>(start) + get<1>(start) * x_dim + action * x_dim * y_dim) + (GAMMA * getMaxFromNewState(new_state));
             maze.setAgent(new_state);
             start = new_state;
+            res+=1;
         }
         maze.printMaze(logFile);
-        cout << "Arrived At destination number of zeros are " << count(m_data.begin(),m_data.end(), 0)<< endl;
+        return res;
     }
 
 #pragma mark SARSA METHOD
-    
-
-   
+       
     int chooseARandomAction(tuple<int,int> currentPos){
         std::random_device rd2;
         std::mt19937 gen(rd2());
@@ -399,31 +423,61 @@ public:
     void completeSARSA(int goal_x, int goal_y){
         int c=0;
         int numberOfSteps = 0;
-        this->epsilon = 0.99;
+        this->epsilon = 1.0;
+        int episodes = 1000;
+        std::clock_t start;
+        start = std::clock();
         logFile << "************************************* SARSA ALGORITHM ************************************** " << endl;
-        while(count(m_data.begin(),m_data.end(),0.0)>0){
+        while (episodes!=0){
             Maze temp((int)x_dim,(int)y_dim);
             temp.setWalls(listOFWalls, tuple<int,int>(goal_x,goal_y));
             this->maze = temp;
             c+=1;
             logFile << "\t\t\t EPISODE: " << c << endl;
-            numberOfSteps+=runAnEpisodeOfSARSA(goal_x, goal_y, this->epsilon);
+            //numberOfSteps+=runAnEpisodeOfSARSA(goal_x, goal_y, this->epsilon);
+            numberOfSteps+=runAnEpisodeWithRandomEffect(goal_x, goal_y, this->epsilon);
             this->printValuesInReadableForm();
-            if((this->epsilon - 0.0001) >=0){
-                this->epsilon -= 0.0001;
+            if((this->epsilon - 0.001) >=0){
+                this->epsilon -= 0.001;
             }
-            if(numberOfSteps>8000){
-                break;
-            }
-            //cout << "Total  Number of steps done: " << numberOfSteps << endl;
+            episodes-=1;
             
         }
-        cout << "Episode needed to convergence with SARSA  = " <<c << endl;
+        cout << "SARSA completed in : " << (clock() - start)/(double)CLOCKS_PER_SEC<< " seconds" << endl;
         logFile.close();
         
 
     }
-    
+    int runAnEpisodeWithRandomEffect(int goal_x, int goal_y, double epsilon){
+        tuple<int,int> currentPos = getRandomPosition();
+        int action = chooseActionWithPolicyEGreedy(currentPos);
+        tuple<int,int> new_state;
+        int count = 0;
+        int reward,action2,r_act,r_act2;
+        int x1,y1,x2,y2;
+        while(get<0>(currentPos) != goal_x || get<1>(currentPos) != goal_y){
+            logFile << "Starting position is at : " << get<0>(currentPos) << get<1>(currentPos)<< endl;
+            r_act = returnARandomAction(currentPos, action);
+            new_state = observeNewState(currentPos, r_act);
+            reward = reward_data.at(get<0>(currentPos) + get<1>(currentPos) *x_dim + r_act * x_dim * y_dim);
+            action2 = chooseActionWithPolicyEGreedy(new_state);
+            r_act2 = returnARandomAction(currentPos, action2);
+            logFile << "Observing new state is: " << get<0>(new_state) << get<1>(new_state)<< endl;
+            logFile << "Action1 =  " << action << "Action2 is= " << action2<< endl;
+            x1 = get<0>(currentPos);
+            y1 = get<1>(currentPos);
+            x2 = get<0>(new_state);
+            y2 = get<1>(new_state);
+            m_data.at(x1 + y1 * x_dim + r_act * x_dim * y_dim) += ALFA*(reward + (GAMMA*m_data.at(x2 + y2 * x_dim + r_act2 * x_dim * y_dim))
+                                                                        - m_data.at(x1 + y1 * x_dim + r_act * x_dim * y_dim));
+            currentPos = new_state;
+            action = action2;
+            maze.setAgent(currentPos);
+            maze.printMaze(logFile);
+            count+=1;
+        }
+        return count;
+    }
     int runAnEpisodeOfSARSA(int goal_x, int goal_y, double epsilon){
         
         tuple<int,int> currentPos = getRandomPosition();
@@ -434,8 +488,7 @@ public:
         int x1,y1,x2,y2;
         while(get<0>(currentPos) != goal_x || get<1>(currentPos) != goal_y){
             logFile << "Starting position is at : " << get<0>(currentPos) << get<1>(currentPos)<< endl;
-            //new_state = observeNewState(currentPos, action);
-            new_state = returnAfunctionWithARandomEffect(currentPos,action);
+            new_state = observeNewState(currentPos, action);
             reward = reward_data.at(get<0>(currentPos) + get<1>(currentPos) *x_dim + action * x_dim * y_dim);
             action2 = chooseActionWithPolicyEGreedy(new_state);
             logFile << "Observing new state is: " << get<0>(new_state) << get<1>(new_state)<< endl;
@@ -446,7 +499,7 @@ public:
             y2 = get<1>(new_state);
             m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim) += ALFA*(reward + (GAMMA*m_data.at(x2 + y2 * x_dim + action2 * x_dim * y_dim))
                                                                                 - m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim));
-             currentPos = new_state;
+            currentPos = new_state;
             action = action2;
             maze.setAgent(currentPos);
             maze.printMaze(logFile);
@@ -472,5 +525,21 @@ public:
             res = observeNewState(currentPos, action);
         }
         return res;
+    }
+    int returnARandomAction(tuple<int,int> currentPos, int normal_action){
+        int action;
+        std::random_device rd2;
+        std::mt19937 gen(rd2());
+        std::uniform_int_distribution<int> dist(0,N_OF_ACTIONS-1);
+        action = dist(gen);
+        int x,y;
+        tuple<int,int> res = observeNewState(currentPos, action);
+        x = get<0>(currentPos);
+        y = get<1>(currentPos);
+        while((get<0>(res)==-1 || get<1>(res)==-1)){
+            action = dist(gen);
+            res = observeNewState(currentPos, action);
+        }
+        return action;
     }
 };
