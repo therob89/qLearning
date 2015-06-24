@@ -315,16 +315,15 @@ public:
             }
         }
     }
-    logFile << "************************************************************************************ " << endl;
+    logFile << "************************************************************************************" << endl;
 }
 #pragma mark Q_LEARNING METHODS
     void doLearning(int goal_x, int goal_y){
         this->epsilon = 1.0;
         int c=0;
         int episodes = 100;
-        int step = 0;
+        double tempMetrics = 0,tempMetrics1 = 0;
         double constant = 0.2;
-        double avg_reward = 0;
         std::clock_t start;
         start = std::clock();
         ofstream metrics;
@@ -336,14 +335,22 @@ public:
             c+=1;
             logFile << "\t\t\t EPISODE: " << c << endl;
             //metrics << "Episode :" << c <<"QLEARning value: \t" << runQLearningEpisode(goal_x, goal_y,constant) << endl;
-            metrics << "Episode :" << c <<"QLEARning value: \t" << runQLearningEpisodeDeterministic(goal_x, goal_y,constant) << endl;
+            //tempMetrics1 = runQLearningEpisodeDeterministic(goal_x, goal_y,constant);
+            tempMetrics1 = runQLearningEpisode(goal_x, goal_y,constant);
+            if(tempMetrics1>0){
+                tempMetrics = tempMetrics1;
+                metrics << "Episode :" << c <<"QLEARning value: \t" << tempMetrics << endl;
+                
+            }else{
+                metrics << "Episode :" << c <<"QLEARning value: \t" << tempMetrics << endl;
+            }
             this->printValuesInReadableForm();
             constant += 0.2;
-            if((this->epsilon - 0.001) >=0){
-                this->epsilon -= 0.001;
+            if((this->epsilon - 0.01) >=0){
+                this->epsilon -= 0.01;
             }
             episodes-=1;
-        }while (episodes!=0);//count(m_data.begin(),m_data.end(),0.0)!=0);
+        }while (episodes!=0);
         cout << "QLEARNING completed in : " << (clock() - start)/(double)CLOCKS_PER_SEC<< " seconds" << endl;
         logFile.close();
         metrics.close();
@@ -370,6 +377,9 @@ public:
             num_of_steps+=1;
         }
         maze.printMaze(logFile);
+        if(num_of_steps == 0){
+            return 0;
+        }
         return (sum_of_rew/num_of_steps);
     }
     double runQLearningEpisodeDeterministic(int goal_x, int goal_y, double k_val){
@@ -391,6 +401,9 @@ public:
             num_of_steps+=1;
         }
         maze.printMaze(logFile);
+        if(num_of_steps == 0){
+            return 0;
+        }
         return (sum_of_rew/num_of_steps);
     }
 
@@ -433,9 +446,9 @@ public:
     
     void completeSARSA(int goal_x, int goal_y){
         int c=0;
-        int numberOfSteps = 0;
         this->epsilon = 1.0;
-        int episodes = 200;
+        int episodes = 100;
+        double tempMetrics = 0,tempMetrics1 = 0;
         std::clock_t start;
         start = std::clock();
         ofstream metrics;
@@ -447,10 +460,17 @@ public:
             this->maze = temp;
             c+=1;
             logFile << "\t\t\t EPISODE: " << c << endl;
-            metrics<< "Episode " << c << "AverageReward " << runAnEpisodeOfSARSA(goal_x, goal_y, this->epsilon) << endl;
+            //tempMetrics1 = runAnEpisodeOfSARSA(goal_x, goal_y, this->epsilon);
+            tempMetrics1 =  runAnEpisodeWithRandomEffect(goal_x, goal_y, this->epsilon);
+            if(tempMetrics1>0){
+                tempMetrics = tempMetrics1;
+                metrics << "Episode :" << c <<"AVG_SARSA_REWARD value: \t" << tempMetrics << endl;
+                
+            }else{
+                metrics << "Episode :" << c <<"AVG_SARSA_REWARD value: \t" << tempMetrics << endl;
+            }
+            //metrics<< "Episode " << c << "AverageReward " << runAnEpisodeOfSARSA(goal_x, goal_y, this->epsilon) << endl;
             //metrics<< "Episode " << c << "AverageReward " << runAnEpisodeWithRandomEffect(goal_x, goal_y, this->epsilon) << endl;
-            //numberOfSteps+=runAnEpisodeOfSARSA(goal_x, goal_y, this->epsilon);
-            //numberOfSteps+=runAnEpisodeWithRandomEffect(goal_x, goal_y, this->epsilon);
             this->printValuesInReadableForm();
             if((this->epsilon - 0.01) >=0){
                 this->epsilon -= 0.01;
@@ -467,7 +487,6 @@ public:
         tuple<int,int> currentPos = getRandomPosition();
         int action = chooseActionWithPolicyEGreedy(currentPos);
         tuple<int,int> new_state;
-        int count = 0;
         int reward,action2,r_act,r_act2;
         int x1,y1,x2,y2;
         double average_reward = 0;
@@ -487,7 +506,8 @@ public:
             y2 = get<1>(new_state);
             m_data.at(x1 + y1 * x_dim + r_act * x_dim * y_dim) += ALFA*(reward + (GAMMA*m_data.at(x2 + y2 * x_dim + r_act2 * x_dim * y_dim))
                                                                         - m_data.at(x1 + y1 * x_dim + r_act * x_dim * y_dim));
-            average_reward+=m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim);
+            //average_reward+=m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim);
+            average_reward+=  m_data.at(x1 + y1 * x_dim + r_act * x_dim * y_dim);
             currentPos = new_state;
             action = action2;
             maze.setAgent(currentPos);
