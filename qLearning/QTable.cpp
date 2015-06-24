@@ -168,6 +168,8 @@ public:
     
 #pragma mark FACILITIES
     
+  
+    
     int getMaxFromNewState(tuple<int,int> new_pos){
         int k,temp,res=0;
         for(k=0;k<N_OF_ACTIONS;k++){
@@ -319,19 +321,22 @@ public:
     void doLearning(int goal_x, int goal_y){
         this->epsilon = 1.0;
         int c=0;
-        int episodes = 1000;
+        int episodes = 100;
         int step = 0;
         double constant = 0.2;
+        double avg_reward = 0;
         std::clock_t start;
         start = std::clock();
+        ofstream metrics;
+        metrics.open("./metrics.txt",ios::out);
         do{
             Maze temp((int)x_dim,(int)y_dim);
             temp.setWalls(listOFWalls, tuple<int,int>(goal_x,goal_y));
             this->maze = temp;
             c+=1;
             logFile << "\t\t\t EPISODE: " << c << endl;
-            step+= runQLearningEpisode(goal_x, goal_y,constant);
-            //step += runQLearningEpisodeDeterministic(goal_x, goal_y,constant);
+            //metrics << "Episode :" << c <<"QLEARning value: \t" << runQLearningEpisode(goal_x, goal_y,constant) << endl;
+            metrics << "Episode :" << c <<"QLEARning value: \t" << runQLearningEpisodeDeterministic(goal_x, goal_y,constant) << endl;
             this->printValuesInReadableForm();
             constant += 0.2;
             if((this->epsilon - 0.001) >=0){
@@ -341,15 +346,17 @@ public:
         }while (episodes!=0);//count(m_data.begin(),m_data.end(),0.0)!=0);
         cout << "QLEARNING completed in : " << (clock() - start)/(double)CLOCKS_PER_SEC<< " seconds" << endl;
         logFile.close();
+        metrics.close();
     }
 
-    int runQLearningEpisode(int goal_x, int goal_y, double k_val){
+    double runQLearningEpisode(int goal_x, int goal_y, double k_val){
        
         tuple<int,int> start = getRandomPosition();
         tuple<int,int> new_state;
         int action;
         int act;
-        int res;
+        double sum_of_rew = 0;
+        int num_of_steps = 0;
         maze.setAgent(start);
         while(get<0>(start) != goal_x || get<1>(start) != goal_y){
             maze.printMaze(logFile);
@@ -357,30 +364,34 @@ public:
             act = returnARandomAction(start, action);
             new_state = observeNewState(start, act);
             m_data.at(get<0>(start) + get<1>(start) * x_dim + action * x_dim * y_dim) = reward_data.at(get<0>(start) + get<1>(start) * x_dim + act * x_dim * y_dim) + (GAMMA * getMaxFromNewState(new_state));
+            sum_of_rew +=  m_data.at(get<0>(start) + get<1>(start) * x_dim + action * x_dim * y_dim);
             maze.setAgent(new_state);
             start = new_state;
-            res+=1;
+            num_of_steps+=1;
         }
         maze.printMaze(logFile);
-        return res;
+        return (sum_of_rew/num_of_steps);
     }
-    int runQLearningEpisodeDeterministic(int goal_x, int goal_y, double k_val){
+    double runQLearningEpisodeDeterministic(int goal_x, int goal_y, double k_val){
         
         tuple<int,int> start = getRandomPosition();
         tuple<int,int> new_state;
-        int action,res;
+        int action;
+        double sum_of_rew = 0;
+        int num_of_steps = 0;
         maze.setAgent(start);
         while(get<0>(start) != goal_x || get<1>(start) != goal_y){
             maze.printMaze(logFile);
             action = chooseActionWithPolicyEGreedy(start);
             new_state = observeNewState(start, action);
             m_data.at(get<0>(start) + get<1>(start) * x_dim + action * x_dim * y_dim) = reward_data.at(get<0>(start) + get<1>(start) * x_dim + action * x_dim * y_dim) + (GAMMA * getMaxFromNewState(new_state));
+            sum_of_rew +=  m_data.at(get<0>(start) + get<1>(start) * x_dim + action * x_dim * y_dim);
             maze.setAgent(new_state);
             start = new_state;
-            res+=1;
+            num_of_steps+=1;
         }
         maze.printMaze(logFile);
-        return res;
+        return (sum_of_rew/num_of_steps);
     }
 
 #pragma mark SARSA METHOD
@@ -424,9 +435,11 @@ public:
         int c=0;
         int numberOfSteps = 0;
         this->epsilon = 1.0;
-        int episodes = 1000;
+        int episodes = 200;
         std::clock_t start;
         start = std::clock();
+        ofstream metrics;
+        metrics.open("./metricsSarsa2_1.txt",ios::out);
         logFile << "************************************* SARSA ALGORITHM ************************************** " << endl;
         while (episodes!=0){
             Maze temp((int)x_dim,(int)y_dim);
@@ -434,27 +447,31 @@ public:
             this->maze = temp;
             c+=1;
             logFile << "\t\t\t EPISODE: " << c << endl;
+            metrics<< "Episode " << c << "AverageReward " << runAnEpisodeOfSARSA(goal_x, goal_y, this->epsilon) << endl;
+            //metrics<< "Episode " << c << "AverageReward " << runAnEpisodeWithRandomEffect(goal_x, goal_y, this->epsilon) << endl;
             //numberOfSteps+=runAnEpisodeOfSARSA(goal_x, goal_y, this->epsilon);
-            numberOfSteps+=runAnEpisodeWithRandomEffect(goal_x, goal_y, this->epsilon);
+            //numberOfSteps+=runAnEpisodeWithRandomEffect(goal_x, goal_y, this->epsilon);
             this->printValuesInReadableForm();
-            if((this->epsilon - 0.001) >=0){
-                this->epsilon -= 0.001;
+            if((this->epsilon - 0.01) >=0){
+                this->epsilon -= 0.01;
             }
             episodes-=1;
-            
         }
         cout << "SARSA completed in : " << (clock() - start)/(double)CLOCKS_PER_SEC<< " seconds" << endl;
         logFile.close();
+        metrics.close();
         
 
     }
-    int runAnEpisodeWithRandomEffect(int goal_x, int goal_y, double epsilon){
+    double runAnEpisodeWithRandomEffect(int goal_x, int goal_y, double epsilon){
         tuple<int,int> currentPos = getRandomPosition();
         int action = chooseActionWithPolicyEGreedy(currentPos);
         tuple<int,int> new_state;
         int count = 0;
         int reward,action2,r_act,r_act2;
         int x1,y1,x2,y2;
+        double average_reward = 0;
+        int number_of_steps = 1;
         while(get<0>(currentPos) != goal_x || get<1>(currentPos) != goal_y){
             logFile << "Starting position is at : " << get<0>(currentPos) << get<1>(currentPos)<< endl;
             r_act = returnARandomAction(currentPos, action);
@@ -470,22 +487,25 @@ public:
             y2 = get<1>(new_state);
             m_data.at(x1 + y1 * x_dim + r_act * x_dim * y_dim) += ALFA*(reward + (GAMMA*m_data.at(x2 + y2 * x_dim + r_act2 * x_dim * y_dim))
                                                                         - m_data.at(x1 + y1 * x_dim + r_act * x_dim * y_dim));
+            average_reward+=m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim);
             currentPos = new_state;
             action = action2;
             maze.setAgent(currentPos);
             maze.printMaze(logFile);
-            count+=1;
+            number_of_steps+=1;
         }
-        return count;
+        return (average_reward/number_of_steps);
+
     }
-    int runAnEpisodeOfSARSA(int goal_x, int goal_y, double epsilon){
+    double runAnEpisodeOfSARSA(int goal_x, int goal_y, double epsilon){
         
         tuple<int,int> currentPos = getRandomPosition();
         int action = chooseActionWithPolicyEGreedy(currentPos);
         tuple<int,int> new_state;
-        int count = 0;
         int reward,action2;
         int x1,y1,x2,y2;
+        double average_reward = 0;
+        int number_of_steps = 1;
         while(get<0>(currentPos) != goal_x || get<1>(currentPos) != goal_y){
             logFile << "Starting position is at : " << get<0>(currentPos) << get<1>(currentPos)<< endl;
             new_state = observeNewState(currentPos, action);
@@ -499,13 +519,14 @@ public:
             y2 = get<1>(new_state);
             m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim) += ALFA*(reward + (GAMMA*m_data.at(x2 + y2 * x_dim + action2 * x_dim * y_dim))
                                                                                 - m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim));
+            average_reward+=m_data.at(x1 + y1 * x_dim + action * x_dim * y_dim);
             currentPos = new_state;
             action = action2;
             maze.setAgent(currentPos);
             maze.printMaze(logFile);
-            count+=1;
+            number_of_steps+=1;
         }
-        return count;
+        return (average_reward/number_of_steps);
     }
   
 #pragma mark RANDOM EFFECT 
